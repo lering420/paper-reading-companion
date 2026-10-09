@@ -582,6 +582,7 @@
 
   // 选中翻译
   function showSelPopup(text, rect, range) {
+    hideHover();   // 两种弹窗不可共存：清掉可能残留的悬停窗及其排队定时器
     closePop('sel');
     const isWord = !/\s/.test(text);
     const pop = document.createElement('div');
@@ -1023,7 +1024,8 @@
       on(box, 'mousemove', (e) => {
         if (destroyed) return;
         const sel = window.getSelection();
-        if (sel && !sel.isCollapsed) return;
+        // 选区存在时不仅不弹悬停，还要撤掉拖动开始前排下的定时器
+        if (sel && !sel.isCollapsed) { clearTimeout(hover.timer); return; }
         clearTimeout(hover.timer);
         const info = wordInfoAt(e.clientX, e.clientY);
         if (!info) { scheduleHideHover(500); return; }
@@ -1033,7 +1035,13 @@
         }
         hover.word = info.word;
         const x = e.clientX, y = e.clientY;
-        hover.timer = setTimeout(() => { if (!destroyed) showHover(info, x, y); }, HOVER_DELAY);
+        hover.timer = setTimeout(() => {
+          if (destroyed) return;
+          // 到点时再查一次选区：拖动选中期间排下的旧定时器不许再弹窗
+          const s = window.getSelection();
+          if (s && !s.isCollapsed) return;
+          showHover(info, x, y);
+        }, HOVER_DELAY);
       });
       on(box, 'mousedown', (e) => {
         if (e.target.closest && e.target.closest('.pop')) return;
