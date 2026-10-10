@@ -1,0 +1,200 @@
+# NLP / 人工智能术语种子表（本项目自维护，MIT）
+# 格式：英文小写词条 <TAB> 中文译文（无制表符/换行）
+# 由 tools/build-termbase.js 合入 termbase.tsv.gz，命中时覆盖 ECDICT 同名词条
+# ---------- 自然语言处理 ----------
+natural language processing	自然语言处理
+large language model	大语言模型
+language model	语言模型
+machine translation	机器翻译
+neural machine translation	神经机器翻译
+named entity recognition	命名实体识别
+part-of-speech tagging	词性标注
+part of speech	词性
+dependency parsing	依存句法分析
+constituency parsing	成分句法分析
+word embedding	词嵌入
+word2vec	词向量模型（word2vec）
+attention mechanism	注意力机制
+self-attention	自注意力机制
+multi-head attention	多头注意力机制
+multi-head self-attention	多头自注意力机制
+transformer	变压器；变换器；（AI）Transformer 模型架构
+encoder-decoder	编码器-解码器
+seq2seq	序列到序列（seq2seq）
+sequence-to-sequence	序列到序列（Seq2Seq）
+pre-training	预训练
+fine-tuning	微调
+instruction tuning	指令微调
+transfer learning	迁移学习
+zero-shot	零样本
+zero-shot learning	零样本学习
+few-shot learning	少样本学习
+prompt engineering	提示工程
+in-context learning	上下文学习
+chain-of-thought	思维链
+tokenization	标记化（分词）
+subword tokenization	子词切分
+byte pair encoding	字节对编码（BPE）
+beam search	束搜索
+greedy decoding	贪心解码
+perplexity	困惑度
+corpus	语料库
+parallel corpus	平行语料
+stopword	停用词
+stemming	词干化
+lemmatization	词形还原
+word sense disambiguation	词义消歧
+sentiment analysis	情感分析
+text classification	文本分类
+question answering	问答
+abstractive summarization	生成式摘要
+extractive summarization	抽取式摘要
+text generation	文本生成
+information retrieval	信息检索
+semantic similarity	语义相似度
+coreference resolution	共指消解
+anaphora resolution	指代消解
+semantic role labeling	语义角色标注
+sequence labeling	序列标注
+topic modeling	主题模型
+collocation	搭配
+speech recognition	语音识别
+text-to-speech	语音合成（TTS）
+optical character recognition	光学字符识别（OCR）
+computational linguistics	计算语言学
+lexical ambiguity	词汇歧义
+disambiguation	消歧
+out-of-vocabulary	未登录词（OOV）
+bilingual dictionary	双语词典
+# ---------- 知识与信息抽取 ----------
+knowledge graph	知识图谱
+entity linking	实体链接
+relation extraction	关系抽取
+information extraction	信息抽取
+text mining	文本挖掘
+dialogue system	对话系统
+retrieval-augmented generation	检索增强生成（RAG）
+# ---------- 深度学习 ----------
+deep learning	深度学习
+backpropagation	反向传播
+back propagation	反向传播
+reinforcement learning	强化学习
+hyperparameter	超参数
+neural network architecture	神经网络架构
+latent space	潜在空间；隐空间
+greedy search	贪心搜索
+named entity	命名实体；名称实体
+bidirectional encoder representations from transformers	双向编码器表示（BERT）
+curriculum learning	课程学习
+meta-learning	元学习
+neural architecture search	神经架构搜索
+masked language model	掩码语言模型
+autoregressive	自回归的
+convolutional neural network	卷积神经网络（CNN）
+recurrent neural network	循环神经网络（RNN）
+long short-term memory	长短时记忆网络（LSTM）
+generative adversarial network	生成对抗网络（GAN）
+autoencoder	自编码器
+variational autoencoder	变分自编码器
+graph neural network	图神经网络
+diffusion model	扩散模型
+foundation model	基础模型
+multimodal	多模态
+representation learning	表示学习
+contrastive learning	对比学习
+self-supervised learning	自监督学习
+supervised learning	有监督学习
+unsupervised learning	无监督学习
+semi-supervised learning	半监督学习
+reinforcement learning from human feedback	基于人类反馈的强化学习（RLHF）
+policy gradient	策略梯度
+markov decision process	马尔可夫决策过程
+batch normalization	批归一化
+layer normalization	层归一化
+learning rate	学习率
+loss function	损失函数
+softmax	softmax 函数
+activation function	激活函数
+stochastic gradient descent	随机梯度下降
+gradient clipping	梯度裁剪
+regularization	正则化
+hyperparameter tuning	超参数调优
+cross-validation	交叉验证
+underfitting	欠拟合
+bias-variance tradeoff	偏差-方差权衡
+curse of dimensionality	维度灾难
+principal component analysis	主成分分析（PCA）
+support vector machine	支持向量机（SVM）
+random forest	随机森林
+decision tree	决策树
+naive bayes	朴素贝叶斯
+hidden markov model	隐马尔可夫模型（HMM）
+conditional random field	条件随机场（CRF）
+feature engineering	特征工程
+dimensionality reduction	降维
+generative model	生成模型
+discriminative model	判别模型
+federated learning	联邦学习
+differential privacy	差分隐私
+adversarial attack	对抗攻击
+adversarial example	对抗样本
+knowledge distillation	知识蒸馏
+model compression	模型压缩
+data augmentation	数据增强
+weak supervision	弱监督
+label noise	标签噪声
+class imbalance	类别不平衡
+domain adaptation	领域自适应
+distribution shift	分布偏移
+out-of-distribution	分布外
+generalization	泛化能力
+robustness	鲁棒性
+interpretability	可解释性
+explainability	可解释性
+# ---------- 机器学习通识 ----------
+gradient boosting	梯度提升
+ensemble method	集成方法
+mutual information	互信息
+kl divergence	KL 散度
+gaussian process	高斯过程
+expectation maximization	期望最大化（EM）
+markov chain	马尔可夫链
+monte carlo method	蒙特卡洛方法
+bayesian inference	贝叶斯推断
+maximum likelihood estimation	极大似然估计
+prior distribution	先验分布
+posterior distribution	后验分布
+cosine similarity	余弦相似度
+euclidean distance	欧氏距离
+matrix factorization	矩阵分解
+# ---------- 大模型与提示 ----------
+prompt	提示；提示词（LLM）
+token	词元；令牌
+context window	上下文窗口
+scaling laws	缩放定律
+emergent ability	涌现能力
+hallucination	幻觉（大模型）
+alignment	对齐
+# ---------- 论文阅读高频 ----------
+state-of-the-art	最先进的；最新水平
+ablation study	消融研究
+ablation experiment	消融实验
+baseline model	基线模型
+benchmark	基准；基准测试
+reproducibility	可复现性
+statistical significance	统计显著性
+empirical study	实证研究
+epoch	（机器学习）训练轮次；纪元
+batch size	批大小
+glossary	术语表；词汇表
+terminology	术语
+term extraction	术语抽取
+annotation	标注
+annotator	标注者
+inter-annotator agreement	标注者间一致性
+gold standard	金标准
+meta-analysis	元分析
+systematic review	系统综述
+randomized controlled trial	随机对照试验
+confidence interval	置信区间
+p value	P 值

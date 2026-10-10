@@ -4,3 +4,6 @@ data/
 # 临时文件
 .tmp-*
 *.log
+
+# 术语库构建原料（ECDICT 原始 CSV 65MB，构建脚本会自动下载）
+tools/ecdict.csv

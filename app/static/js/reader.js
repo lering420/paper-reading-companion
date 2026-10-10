@@ -524,6 +524,14 @@
     return [...ids];
   }
 
+  function srcBadge() {
+    const b = document.createElement('i');
+    b.className = 'tbadge';
+    b.textContent = '词典';
+    b.title = '命中本地术语库 · 离线直译';
+    return b;
+  }
+
   function showHover(info, x, y) {
     const word = info.word;
     const already = hover.el && hover.el.dataset.word === word;
@@ -578,6 +586,7 @@
           if (hover.el !== pop) return;
           tr.dataset.full = r2.text;
           tr.textContent = r2.text;
+          if (r2.provider === 'termbase') tr.appendChild(srcBadge());
         })
         .catch((e) => {
           if (hover.el !== pop) return;
@@ -622,6 +631,7 @@
       if (selPop !== pop) return;
       tr.dataset.full = r.text;
       tr.textContent = r.text;
+      if (r.provider === 'termbase') tr.appendChild(srcBadge());
       // 若已按该文本建高亮且无译文，补写
       const hl = doc.highlights.find((h) => h.text === text && !h.trans);
       if (hl) { hl.trans = r.text; markDirty(); redrawAllOverlays(); renderHlList(); }
@@ -633,7 +643,7 @@
       btn.textContent = '重试';
       btn.addEventListener('click', () => {
         tr.innerHTML = '<span class="loading">翻译中…</span>';
-        doTranslate(text).then((r2) => { if (isWord) collectWord(text, r2.text); tr.dataset.full = r2.text; tr.textContent = r2.text; })
+        doTranslate(text).then((r2) => { if (isWord) collectWord(text, r2.text); tr.dataset.full = r2.text; tr.textContent = r2.text; if (r2.provider === 'termbase') tr.appendChild(srcBadge()); })
           .catch((e2) => { tr.innerHTML = '<span class="err">' + PR.escapeHtml(e2.message) + '</span>'; });
       });
       tr.appendChild(btn);

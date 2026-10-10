@@ -1,0 +1,19 @@
+本地术语库数据来源与许可
+========================
+
+termbase.tsv.gz 由 tools/build-termbase.js 构建，包含两部分：
+
+1. ECDICT（主词条，约 72 万条）
+   来源：https://github.com/skywind3000/ECDICT
+   许可：MIT License，Copyright (c) 2025 Linwei（仓库 LICENSE）
+   处理：仅保留 word 与 translation 两列的中文释义部分，
+         丢弃 [网络] 行与屈折元信息行，多行译文合并并限长；
+         追加屈折形（p/3/i/s）与无分隔符合并形别名。
+
+2. seed-nlp.tsv（NLP / 人工智能术语种子表，约 190 条）
+   来源：本项目自维护
+   许可：与本项目相同（MIT）
+
+重新构建：
+   node tools/build-termbase.js
+（缺少 tools/ecdict.csv 时会自动从 ECDICT 仓库下载）

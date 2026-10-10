@@ -1,6 +1,7 @@
-// 翻译：提供方适配（mymemory 免费 / openai 兼容 / deepl）、长文本分块、缓存
+// 翻译：提供方适配（mymemory 免费 / openai 兼容 / deepl）、长文本分块、缓存、本地术语库优先
 'use strict';
 const store = require('./store');
+const termbase = require('./termbase');
 
 const TARGET_NAMES = {
   'zh-CN': 'Simplified Chinese (简体中文)',
@@ -129,6 +130,12 @@ async function translate(text) {
   const norm = String(text || '').replace(/\s+/g, ' ').trim();
   if (!norm) return { text: '', cached: false, provider };
   if (norm.length > 8000) throw httpError(413, '选中内容过长（超过 8000 字符），请分段翻译');
+
+  // 简体中文目标：本地术语库优先（学术名词准确且离线可用），未命中再走在线接口
+  if (target === 'zh-CN') {
+    const dict = termbase.lookup(norm);
+    if (dict) return { text: dict, cached: false, provider: 'termbase' };
+  }
 
   const key = store.cacheKey(provider, target, norm);
   const hit = store.cacheGet(key);

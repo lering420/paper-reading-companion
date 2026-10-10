@@ -6,6 +6,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const store = require('./store');
 const { translate, testConnection } = require('./translate');
+const termbase = require('./termbase');
 const backup = require('./backup');
 
 const ROOT = path.join(__dirname, '..');
@@ -180,6 +181,10 @@ async function handleApi(req, res, parsed) {
       return sendErr(res, e.status || 502, e.message);
     }
   }
+  // GET /api/termbase/stats — 本地术语库统计
+  if (method === 'GET' && parsed.pathname === '/api/termbase/stats') {
+    return sendJson(res, 200, termbase.stats());
+  }
   // POST /api/settings
   if (method === 'POST' && parsed.pathname === '/api/settings') {
     const body = await jsonBody(req);
@@ -304,6 +309,8 @@ function listen(port, attemptsLeft) {
     console.log('  └─────────────────────────────────────────┘');
     console.log('');
     if (!process.env.NO_BROWSER) openBrowser(url);
+    // 预热本地术语库（首次悬停取词不卡顿）
+    setTimeout(() => { try { termbase.stats(); } catch (_) {} }, 800);
   });
 }
 

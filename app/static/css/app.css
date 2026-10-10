@@ -358,6 +358,13 @@ a { color: var(--accent); text-decoration: none; }
 .toast.ok { background: #15803d; }
 .toast.error { background: #b91c1c; }
 
+/* ---------- 术语库来源标注 ---------- */
+.tbadge {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font-size: 10px; font-style: normal; font-weight: 600;
+  color: #4338ca; background: #e0e7ff; border-radius: 999px; vertical-align: middle;
+}
+
 /* ---------- 启动/错误 ---------- */
 .boot, .boot-error { text-align: center; padding: 80px 20px; color: var(--muted); line-height: 2; }
 .boot-error h2 { color: var(--text); }

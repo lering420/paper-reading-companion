@@ -73,6 +73,7 @@
         '<div class="row"><label>API Key</label><input id="f-dl-key" type="password" value="' + PR.escapeHtml(dl.apiKey || '') + '"></div>' +
         '</div>' +
         '<div class="row"><label></label><span><button class="btn" id="btn-test">测试连接</button> <span id="test-result" class="hint"></span></span></div>' +
+        '<p class="hint" id="tb-line">本地术语库：加载中…</p>' +
         '</section>' +
 
         '<section class="card">' +
@@ -100,6 +101,13 @@
       const providerSel = el.querySelector('#f-provider');
       toggleProviderFields(el, providerSel.value);
       providerSel.addEventListener('change', () => toggleProviderFields(el, providerSel.value));
+
+      // 本地术语库统计与来源标注
+      PR.api.termbaseStats().then((r) => {
+        const n = el.querySelector('#tb-line');
+        if (n) n.innerHTML = '本地术语库：<b>' + r.count + '</b> 条（ECDICT · MIT + 内置 NLP 种子表），' +
+          '学术术语命中即离线直返并标注「词典」，未命中自动回退在线接口。';
+      }).catch(() => {});
 
       el.querySelector('#btn-test').addEventListener('click', async () => {
         const btn = el.querySelector('#btn-test');

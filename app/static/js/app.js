@@ -55,6 +55,7 @@
     vocabAdd: (word, trans) => req('POST', '/api/vocab', { word, trans }),
     vocabDel: (word) => req('POST', '/api/vocab/delete', { word }),
     vocabLearned: (word, learned) => req('POST', '/api/vocab/learned', { word, learned }),
+    termbaseStats: () => req('GET', '/api/termbase/stats'),
   };
 
   // ---------- 通用 UI ----------
