@@ -12,6 +12,7 @@ const FILES = {
   settings: path.join(DATA, 'settings.json'),
   library: path.join(DATA, 'library.json'),
   cache: path.join(DATA, 'translation_cache.json'),
+  vocab: path.join(DATA, 'vocab.json'),
 };
 
 const DEFAULT_SETTINGS = {
@@ -55,6 +56,7 @@ function ensureInit() {
   if (!fs.existsSync(FILES.settings)) writeJson(FILES.settings, DEFAULT_SETTINGS);
   if (!fs.existsSync(FILES.library)) writeJson(FILES.library, { docs: [] });
   if (!fs.existsSync(FILES.cache)) writeJson(FILES.cache, { entries: {} });
+  if (!fs.existsSync(FILES.vocab)) writeJson(FILES.vocab, { words: [] });
 }
 
 function mergeDefaults(base, defaults) {
@@ -231,6 +233,54 @@ function cacheStats() {
   }
 }
 
+// ---------- 词库（收集翻译过的单词，供学习复习） ----------
+// 词以小写 key 去重；count 为累计查阅次数；learned 为「已掌握」标记
+function vocabLoad() {
+  const data = readJson(FILES.vocab, { words: [] });
+  return Array.isArray(data.words) ? data.words : [];
+}
+function vocabSave(words) {
+  writeJson(FILES.vocab, { words, updatedAt: Date.now() });
+}
+function getVocab() {
+  return vocabLoad().slice().sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+}
+function addVocabWord(word, trans) {
+  const w = String(word || '').trim();
+  if (!w) return null;
+  const key = w.toLowerCase();
+  const words = vocabLoad();
+  const now = Date.now();
+  let item = words.find((x) => x.key === key);
+  if (item) {
+    item.count = (item.count || 1) + 1;
+    item.lastAt = now;
+    if (trans) item.trans = trans;   // 更换翻译引擎后译文随之更新
+  } else {
+    item = { key, w, trans: trans || '', count: 1, firstAt: now, lastAt: now, learned: false };
+    words.push(item);
+  }
+  vocabSave(words);
+  return item;
+}
+function deleteVocabWord(word) {
+  const key = String(word || '').trim().toLowerCase();
+  const words = vocabLoad();
+  const next = words.filter((x) => x.key !== key);
+  if (next.length === words.length) return false;
+  vocabSave(next);
+  return true;
+}
+function setVocabLearned(word, learned) {
+  const key = String(word || '').trim().toLowerCase();
+  const words = vocabLoad();
+  const item = words.find((x) => x.key === key);
+  if (!item) return null;
+  item.learned = !!learned;
+  vocabSave(words);
+  return item;
+}
+
 module.exports = {
   ROOT, DATA, DOCS, FILES, DEFAULT_SETTINGS,
   ensureInit, readJson, writeJson, atomicWrite,
@@ -238,5 +288,6 @@ module.exports = {
   listDocs, getMeta, updateMeta, validId,
   getDoc, saveDoc, createDoc, deleteDoc, savePdf, pdfExists,
   docJsonPath, docPdfPath,
+  getVocab, addVocabWord, deleteVocabWord, setVocabLearned,
   cacheKey, cacheGet, cachePut, cacheStats, cacheFlush,
 };

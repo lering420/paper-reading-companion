@@ -207,7 +207,7 @@
       el.innerHTML =
         '<header class="gh">' +
         '<a class="logo" href="#/">📖 论文伴读</a>' +
-        '<nav><a href="#/">文档库</a><a href="#/settings">设置</a></nav>' +
+        '<nav><a href="#/">文档库</a><a href="#/vocab">词库</a><a href="#/settings">设置</a></nav>' +
         '</header>' +
         '<main class="mgr">' +
         '<div class="mgr-side">' +

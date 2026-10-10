@@ -51,6 +51,10 @@
     },
     test: (settings) => req('POST', '/api/test', { settings }),
     restore: (buf) => req('POST', '/api/restore', buf),
+    vocabList: () => req('GET', '/api/vocab'),
+    vocabAdd: (word, trans) => req('POST', '/api/vocab', { word, trans }),
+    vocabDel: (word) => req('POST', '/api/vocab/delete', { word }),
+    vocabLearned: (word, learned) => req('POST', '/api/vocab/learned', { word, learned }),
   };
 
   // ---------- 通用 UI ----------
@@ -135,6 +139,7 @@
     const seg = path.split('/').filter(Boolean);
     if (seg[0] === 'read' && seg[1]) return { name: 'reader', id: decodeURIComponent(seg[1]), query };
     if (seg[0] === 'notes') return { name: 'manager', query };
+    if (seg[0] === 'vocab') return { name: 'vocab', query };
     if (seg[0] === 'settings') return { name: 'settings', query };
     return { name: 'home', query };
   }

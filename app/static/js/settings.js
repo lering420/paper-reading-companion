@@ -41,7 +41,7 @@
       el.innerHTML =
         '<header class="gh">' +
         '<a class="logo" href="#/">📖 论文伴读</a>' +
-        '<nav><a href="#/">文档库</a><a href="#/notes">笔记管理</a></nav>' +
+        '<nav><a href="#/">文档库</a><a href="#/notes">笔记管理</a><a href="#/vocab">词库</a></nav>' +
         '</header>' +
         '<main class="settings">' +
         '<h1>设置</h1>' +

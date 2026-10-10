@@ -196,6 +196,30 @@ async function handleApi(req, res, parsed) {
       return sendErr(res, e.status || 502, e.message);
     }
   }
+  // GET /api/vocab — 词库列表
+  if (method === 'GET' && parsed.pathname === '/api/vocab') {
+    return sendJson(res, 200, { words: store.getVocab() });
+  }
+  // POST /api/vocab — 收录单词（翻译成功后由前端静默调用）
+  if (method === 'POST' && parsed.pathname === '/api/vocab') {
+    const body = await jsonBody(req, 64 * 1024);
+    const item = store.addVocabWord(body.word, body.trans);
+    if (!item) return sendErr(res, 400, '缺少单词');
+    return sendJson(res, 200, { ok: true, item });
+  }
+  // POST /api/vocab/delete — 删除单词 { word }
+  if (method === 'POST' && parsed.pathname === '/api/vocab/delete') {
+    const body = await jsonBody(req, 64 * 1024);
+    const ok = store.deleteVocabWord(body.word);
+    return ok ? sendJson(res, 200, { ok: true }) : sendErr(res, 404, '单词不存在');
+  }
+  // POST /api/vocab/learned — 标记掌握状态 { word, learned }
+  if (method === 'POST' && parsed.pathname === '/api/vocab/learned') {
+    const body = await jsonBody(req, 64 * 1024);
+    const item = store.setVocabLearned(body.word, body.learned);
+    if (!item) return sendErr(res, 404, '单词不存在');
+    return sendJson(res, 200, { ok: true, item });
+  }
   // GET /api/backup
   if (method === 'GET' && parsed.pathname === '/api/backup') {
     const { zip } = backup.exportBackup();
@@ -279,7 +303,7 @@ function listen(port, attemptsLeft) {
     console.log('  │   关闭本窗口即可退出                      │');
     console.log('  └─────────────────────────────────────────┘');
     console.log('');
-    openBrowser(url);
+    if (!process.env.NO_BROWSER) openBrowser(url);
   });
 }
 

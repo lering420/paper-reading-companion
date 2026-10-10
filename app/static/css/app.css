@@ -362,7 +362,41 @@ a { color: var(--accent); text-decoration: none; }
 .boot, .boot-error { text-align: center; padding: 80px 20px; color: var(--muted); line-height: 2; }
 .boot-error h2 { color: var(--text); }
 
+/* ---------- 词库 ---------- */
+.vocab { max-width: 960px; margin: 0 auto; padding: 22px 24px 60px; }
+.vocab-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.vocab-stat { color: var(--muted); font-size: 13.5px; margin-right: auto; }
+.vocab-search {
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px;
+  font-size: 13.5px; width: 240px; background: var(--card); color: var(--text);
+}
+.vocab-search:focus { outline: none; border-color: var(--accent); }
+.v-filters { display: flex; gap: 6px; }
+.v-list { border: 1px solid var(--line); border-radius: 10px; background: var(--card); overflow: hidden; }
+.v-row {
+  display: flex; align-items: center; gap: 14px; padding: 10px 16px;
+  border-bottom: 1px solid #eef1f5; font-size: 14px;
+}
+.v-row:last-child { border-bottom: 0; }
+.v-row:hover { background: #f8fafc; }
+.v-word { font-weight: 600; min-width: 110px; }
+.v-trans { flex: 1; color: var(--text); line-height: 1.5; min-width: 0; }
+.v-meta { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.v-row.learned { opacity: .62; }
+.v-row.learned .v-word { text-decoration: line-through; }
+.v-learned.on { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+.v-review { position: fixed; inset: 0; background: rgba(15, 23, 42, .5); z-index: 80; display: flex; align-items: center; justify-content: center; }
+.v-card {
+  background: var(--card); border-radius: 16px; padding: 30px 38px 28px;
+  width: min(460px, 90vw); text-align: center; box-shadow: 0 24px 70px rgba(0, 0, 0, .3);
+}
+.v-card-prog { font-size: 12.5px; color: var(--muted); margin-bottom: 14px; }
+.v-card-word { font-size: 32px; font-weight: 700; margin: 10px 0 6px; word-break: break-word; }
+.v-card-trans { font-size: 16px; color: var(--accent-dark); line-height: 1.6; min-height: 44px; margin: 8px 0 4px; }
+.v-card-acts { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+
 @media (max-width: 860px) {
   .r-title { max-width: 120px; }
   .mgr-side { width: 260px; }
+  .vocab-search { width: 150px; }
 }

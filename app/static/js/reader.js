@@ -62,6 +62,13 @@
     return p;
   }
 
+  // ---------- 词库收录：翻译成功的英文单词静默进词库（失败不影响阅读） ----------
+  function collectWord(text, trans) {
+    const w = String(text || '').trim().replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, '');
+    if (!/^[A-Za-z][A-Za-z'’-]{1,39}$/.test(w)) return;
+    PR.api.vocabAdd(w, trans).catch(() => {});
+  }
+
   // ---------- 骨架 ----------
   function skeleton(name) {
     return (
@@ -567,6 +574,7 @@
       const tr = pop.querySelector('.hp-trans');
       doTranslate(word)
         .then((r2) => {
+          collectWord(word, r2.text);
           if (hover.el !== pop) return;
           tr.dataset.full = r2.text;
           tr.textContent = r2.text;
@@ -610,6 +618,7 @@
     const tr = pop.querySelector('.sp-trans');
     const p = doTranslate(text);
     p.then((r) => {
+      if (isWord) collectWord(text, r.text);
       if (selPop !== pop) return;
       tr.dataset.full = r.text;
       tr.textContent = r.text;
@@ -624,7 +633,7 @@
       btn.textContent = '重试';
       btn.addEventListener('click', () => {
         tr.innerHTML = '<span class="loading">翻译中…</span>';
-        doTranslate(text).then((r2) => { tr.dataset.full = r2.text; tr.textContent = r2.text; })
+        doTranslate(text).then((r2) => { if (isWord) collectWord(text, r2.text); tr.dataset.full = r2.text; tr.textContent = r2.text; })
           .catch((e2) => { tr.innerHTML = '<span class="err">' + PR.escapeHtml(e2.message) + '</span>'; });
       });
       tr.appendChild(btn);

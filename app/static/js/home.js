@@ -49,7 +49,7 @@
       el.innerHTML =
         '<header class="gh">' +
         '<a class="logo" href="#/">📖 论文伴读</a>' +
-        '<nav><a href="#/notes">笔记管理</a><a href="#/settings">设置</a></nav>' +
+        '<nav><a href="#/notes">笔记管理</a><a href="#/vocab">词库</a><a href="#/settings">设置</a></nav>' +
         '</header>' +
         '<main class="home">' +
         '<section class="hero">' +
