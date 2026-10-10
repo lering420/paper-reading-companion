@@ -458,12 +458,17 @@
     [0, -12], [0, 12], [-24, 0], [24, 0],
   ];
   function wordInfoAt(x, y) {
+    // 探测可能命中「浮在下方的悬停弹窗盖住」的词——鼠标根本点不到它，
+    // 若据此改换目标，选区会被偷换成弹窗下层的词
+    const popR = hover.el ? hover.el.getBoundingClientRect() : null;
     for (const [dx, dy] of HOVER_PROBES) {
       const info = wordAtProbe(x + dx, y + dy);
-      if (info) {
-        hover.rect = info.range.getBoundingClientRect();
-        return info;
-      }
+      if (!info) continue;
+      const wr = info.range.getBoundingClientRect();
+      if (popR && wr.left < popR.right && wr.right > popR.left &&
+          wr.top < popR.bottom && wr.bottom > popR.top) continue;
+      hover.rect = wr;
+      return info;
     }
     return null;
   }
@@ -552,6 +557,9 @@
           let range = null;
           try { range = hover.range ? hover.range.cloneRange() : null; } catch (_) {}
           if (!range || range.collapsed) { PR.toast('选区已失效，请重新悬停', 'error'); return; }
+          // 最终校验：选区文本必须与弹窗显示的词一致，防止高亮落到别的词上
+          const raw = range.toString().replace(/^['’-]+|['’-]+$/g, '').toLowerCase();
+          if (raw !== word.toLowerCase()) { PR.toast('选区已失效，请重新悬停', 'error'); return; }
           createHighlight(range, word, trans);
           hideHover();
         });
@@ -1029,7 +1037,9 @@
         clearTimeout(hover.timer);
         const info = wordInfoAt(e.clientX, e.clientY);
         if (!info) { scheduleHideHover(500); return; }
-        if (info.word === hover.word && hover.el) {
+        // 只有弹窗实际显示的词一致才允许刷新选区：hover.word 会被探测抢先改写，
+        // 若据此刷新 hover.range，点击高亮就会落在弹窗下层的词上
+        if (info.word === hover.word && hover.el && hover.el.dataset.word === info.word) {
           hover.range = info.range.cloneRange();   // 同词重新悬停时刷新选区
           return;
         }
