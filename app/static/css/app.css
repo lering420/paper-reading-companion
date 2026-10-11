@@ -223,13 +223,19 @@ a { color: var(--accent); text-decoration: none; }
 
 /* 高亮覆盖层（不拦截鼠标，点击用几何判定） */
 .overlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
-.mhl, .rhl { position: absolute; border-radius: 2px; }
+.mhl, .rhl, .mann { position: absolute; border-radius: 2px; }
 .mhl { background: var(--hlc, var(--hl)); transition: filter .15s; }
 .rhl {
   background: var(--hlc, var(--hl-link));
   box-shadow: inset 0 0 0 1px rgba(14, 116, 144, .45);
 }
-.mhl.flash { animation: flashHl 1s ease-in-out 2; }
+/* 批注：虚线下划线 + 淡橙底纹，与高亮色块、笔记面板明确区分 */
+.mann {
+  box-sizing: border-box;
+  background: rgba(245, 158, 11, .13);
+  border-bottom: 2px dashed #d97706;
+}
+.mhl.flash, .mann.flash { animation: flashHl 1s ease-in-out 2; }
 @keyframes flashHl {
   0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); filter: none; }
   50% { box-shadow: 0 0 0 4px rgba(249, 115, 22, .75); filter: saturate(1.6); }
@@ -245,8 +251,9 @@ a { color: var(--accent); text-decoration: none; }
 .drawer.open { transform: translateX(0); }
 .d-tabs { display: flex; border-bottom: 1px solid var(--line); position: relative; flex-shrink: 0; }
 .d-tabs button {
-  flex: 1; padding: 11px 6px; background: none; border: 0; cursor: pointer;
-  font-size: 13.5px; color: var(--muted); border-bottom: 2px solid transparent;
+  flex: 1; padding: 11px 3px; background: none; border: 0; cursor: pointer;
+  font-size: 13px; color: var(--muted); border-bottom: 2px solid transparent;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .d-tabs button.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 .d-tabs .d-close { flex: 0 0 34px; font-size: 16px; color: var(--muted); }
@@ -290,9 +297,25 @@ a { color: var(--accent); text-decoration: none; }
 .hl-item-top { display: flex; justify-content: space-between; margin-bottom: 5px; }
 .hl-item-text { font-size: 13px; line-height: 1.6; }
 .hl-item-trans { font-size: 12.5px; color: #0369a1; margin-top: 5px; line-height: 1.6; }
-.hl-item-acts { display: flex; justify-content: flex-end; margin-top: 7px; }
+.hl-item-acts { display: flex; justify-content: flex-end; margin-top: 7px; gap: 6px; }
 .hl-item-acts .hl-un { color: #b91c1c; }
 .hl-item-acts .hl-un:hover { background: #fef2f2; border-color: #fca5a5; }
+/* 每条高亮的单独联动开关（顶栏总开关仍是总闸） */
+.hl-item-acts .hl-link { margin-right: auto; color: var(--muted); }
+.hl-item-acts .hl-link.on { color: #4338ca; background: #e0e7ff; border-color: #c7d2fe; }
+/* 批注展开区与展开按钮 */
+.hl-exp { display: block; width: 100%; margin-top: 7px; text-align: left; color: var(--muted); }
+.hl-exp.on { color: #b45309; background: #fffbeb; border-color: #fcd34d; }
+.hl-anns {
+  margin-top: 7px; padding: 6px 9px; background: #fffbeb;
+  border: 1px dashed #fcd34d; border-radius: 7px;
+}
+.hl-ann { padding: 5px 0; border-bottom: 1px dashed var(--line); }
+.hl-ann:last-child { border-bottom: 0; }
+.hl-ann-body { font-size: 12.5px; line-height: 1.65; white-space: pre-wrap; margin-top: 2px; }
+/* 侧栏独立批注条目：虚线左边框呼应页面下划线 */
+.hl-item.ann-item { border-left: 3px dashed #d97706 !important; background: #fffdf8; }
+.hl-item.ann-item:hover { background: #fffbeb; }
 
 /* ---------- 弹层（翻译/批注） ---------- */
 #pop-root { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
@@ -329,12 +352,11 @@ a { color: var(--accent); text-decoration: none; }
   padding: 8px 12px; background: #fffbeb; border-bottom: 1px dashed var(--line);
   font-size: 12.5px; color: #92400e; line-height: 1.6; max-height: 72px; overflow: hidden;
 }
-.np-anns { max-height: 160px; overflow-y: auto; padding: 6px 10px; }
-.np-ann { border-bottom: 1px dashed var(--line); padding: 6px 2px; }
-.np-ann:last-child { border-bottom: 0; }
-.np-ann-body { line-height: 1.6; white-space: pre-wrap; }
-.np-ann-meta { display: flex; gap: 6px; align-items: center; font-size: 11.5px; color: var(--muted); margin-top: 4px; }
-.np-ann-meta .btn { margin-left: auto; }
+/* 高亮弹窗译文区 */
+.np-trans {
+  padding: 8px 12px; font-size: 12.5px; color: #0369a1; line-height: 1.65;
+  max-height: 96px; overflow: hidden; white-space: pre-wrap; word-break: break-word;
+}
 .notepop .np-input {
   display: block; width: calc(100% - 24px); margin: 8px 12px 0;
   border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; resize: vertical;

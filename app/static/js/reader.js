@@ -29,6 +29,7 @@
   let pendingFlash = null;
   let boundFns = [];
   let hover = { timer: null, word: '', el: null, hideTimer: null, trans: null, rect: null, range: null };
+  let expanded = new Set();   // 侧栏已展开的条目 id（瞬态，不持久化）
   let selPop = null;
   let notePop = null;
   let rafScroll = 0;
@@ -85,6 +86,7 @@
       '<button class="btn mini" id="r-zin">＋</button></div>' +
       '<button class="btn ghost" id="r-tab-note">📝 笔记</button>' +
       '<button class="btn ghost" id="r-tab-hl">🖍 高亮</button>' +
+      '<button class="btn ghost" id="r-tab-ann">✎ 批注</button>' +
       '<span class="r-saved" id="r-saved"></span>' +
       '</header>' +
       '<div class="rbody" id="rbody">' +
@@ -93,8 +95,9 @@
       '</div>' +
       '<aside class="drawer" id="drawer">' +
       '<div class="d-tabs">' +
-      '<button class="on" data-t="note">📝 本篇笔记</button>' +
-      '<button data-t="hl">🖍 高亮 · 批注 <i id="d-hlcount"></i></button>' +
+      '<button class="on" data-t="note">📝 笔记</button>' +
+      '<button data-t="hl">🖍 高亮 <i id="d-hlcount"></i></button>' +
+      '<button data-t="ann">✎ 批注 <i id="d-anncount"></i></button>' +
       '<button class="d-close" id="d-close" title="收起">×</button>' +
       '</div>' +
       '<div class="d-pane" id="pane-note">' +
@@ -113,6 +116,7 @@
       '</div>' +
       '</div>' +
       '<div class="d-pane" id="pane-hl" hidden><div class="hl-list" id="hl-list"></div></div>' +
+      '<div class="d-pane" id="pane-ann" hidden><div class="hl-list" id="ann-list"></div></div>' +
       '</aside>' +
       '</div>'
     );
@@ -275,10 +279,18 @@
     for (const n of renderedSet) drawnOverlays(n);
   }
 
+  // 批注在页面上的矩形：优先自身 rects，旧批注回退到所属高亮
+  function annRects(a) {
+    if (a.rects && a.rects.length) return a.rects;
+    const hl = a.highlightId && doc ? doc.highlights.find((h) => h.id === a.highlightId) : null;
+    return hl ? hl.rects : [];
+  }
+
   function drawManual(n) {
     const ov = overlayOf(n);
     if (!ov) return;
     ov.querySelectorAll('.mhl').forEach((x) => x.remove());
+    ov.querySelectorAll('.mann').forEach((x) => x.remove());
     for (const hl of doc.highlights) {
       for (const r of hl.rects) {
         if (r.p !== n) continue;
@@ -286,6 +298,20 @@
         d.className = 'mhl';
         d.dataset.hl = hl.id;
         d.style.setProperty('--hlc', hlColor(hl.text, 0.52));
+        d.style.left = (r.x * 100) + '%';
+        d.style.top = (r.y * 100) + '%';
+        d.style.width = (r.w * 100) + '%';
+        d.style.height = (r.h * 100) + '%';
+        ov.appendChild(d);
+      }
+    }
+    // 批注：虚线下划线，视觉上区别于高亮色块
+    for (const a of doc.annotations) {
+      for (const r of annRects(a)) {
+        if (r.p !== n) continue;
+        const d = document.createElement('div');
+        d.className = 'mann';
+        d.dataset.ann = a.id;
         d.style.left = (r.x * 100) + '%';
         d.style.top = (r.y * 100) + '%';
         d.style.width = (r.w * 100) + '%';
@@ -318,6 +344,7 @@
     if (!tl || !doc.highlights.length) return;
     const res = [];
     for (const hl of doc.highlights) {
+      if (hl.linkage === false) continue;   // 该词的联动被单独关闭
       const re = buildRe(linkText(hl.text));
       if (re) res.push({ re, hl });
     }
@@ -480,23 +507,29 @@
     return null;
   }
 
-  // 取消高亮（可批量）：有关联批注（或强制）时先确认，再级联删除
+  // 取消高亮（可批量）：其下批注不删除——就地转为独立批注（补齐自身 rects）
   function removeHighlights(hlIds, forceConfirm) {
     const ids = new Set(hlIds);
     if (!ids.size || !doc) return Promise.resolve(false);
-    const n = doc.annotations.filter((a) => ids.has(a.highlightId)).length;
-    const p = (forceConfirm || n)
-      ? PR.confirmBox(n
-          ? '删除这 ' + ids.size + ' 条高亮？关联的 ' + n + ' 条批注也会一并删除。'
+    const affected = doc.annotations.filter((a) => a.highlightId && ids.has(a.highlightId));
+    const p = (forceConfirm || affected.length)
+      ? PR.confirmBox(affected.length
+          ? '取消这 ' + ids.size + ' 条高亮？其 ' + affected.length + ' 条批注将转为独立批注保留。'
           : '取消这 ' + ids.size + ' 条高亮？')
       : Promise.resolve(true);
     return Promise.resolve(p).then((ok) => {
       if (!ok || !doc) return false;
+      for (const a of affected) {
+        const owner = doc.highlights.find((h) => h.id === a.highlightId);
+        if ((!a.rects || !a.rects.length) && owner) {
+          a.rects = owner.rects.map((r) => ({ p: r.p, x: r.x, y: r.y, w: r.w, h: r.h }));
+        }
+        delete a.highlightId;
+      }
       doc.highlights = doc.highlights.filter((h) => !ids.has(h.id));
-      doc.annotations = doc.annotations.filter((a) => !ids.has(a.highlightId));
       markDirty();
       redrawAllOverlays();
-      renderHlList();
+      renderLists();
       return true;
     });
   }
@@ -550,6 +583,7 @@
         (isHl
           ? '<button class="btn mini hp-un" title="取消这个词的高亮">✕ 取消高亮</button>'
           : '<button class="btn mini hp-hl" title="将这个词加入高亮">🖍 高亮</button>') +
+        '<button class="btn mini hp-ann" title="给这个词添加批注">✎ 批注</button>' +
         '<button class="btn mini hp-copy" title="复制译文">复制</button></div>';
       const r = hover.rect;
       positionPop(pop, r ? r.left : x, r ? r.bottom + 6 : y + 14);
@@ -579,6 +613,19 @@
           hideHover();
         });
       }
+      pop.querySelector('.hp-ann').addEventListener('click', () => {
+        let range = null;
+        try { range = hover.range ? hover.range.cloneRange() : null; } catch (_) {}
+        if (!range || range.collapsed) { PR.toast('选区已失效，请重新悬停', 'error'); return; }
+        // 与高亮入口同样的选区校验，防止批注落到别的词上
+        const raw = range.toString().replace(/^['’-]+|['’-]+$/g, '').toLowerCase();
+        if (raw !== word.toLowerCase()) { PR.toast('选区已失效，请重新悬停', 'error'); return; }
+        const items = rectsFromRange(range);
+        if (!items.length) { PR.toast('无法定位批注位置，请重试', 'error'); return; }
+        const r0 = hover.rect;
+        hideHover();
+        openNewAnnPop(word, items, r0 ? r0.left : x, r0 ? r0.bottom + 6 : y + 14);
+      });
       const tr = pop.querySelector('.hp-trans');
       doTranslate(word)
         .then((r2) => {
@@ -619,6 +666,7 @@
       '<div class="sp-trans"><span class="loading">翻译中…</span></div>' +
       '<div class="sp-actions">' +
       '<button class="btn primary mini" id="sp-hl">🖍 高亮</button>' +
+      '<button class="btn mini" id="sp-ann">✎ 批注</button>' +
       '<button class="btn mini" id="sp-copy">复制译文</button>' +
       '</div>';
     positionPop(pop, rect.left, rect.bottom + 8);
@@ -659,6 +707,14 @@
       closePop('sel');
       window.getSelection().removeAllRanges();
     });
+    pop.querySelector('#sp-ann').addEventListener('click', () => {
+      const items = rectsFromRange(range);
+      if (!items.length) { PR.toast('无法定位批注位置，请重试', 'error'); return; }
+      const px = rect.left, py = rect.bottom + 8;
+      closePop('sel');
+      window.getSelection().removeAllRanges();
+      openNewAnnPop(text, items, px, py);
+    });
   }
 
   function findPageAt(x, y) {
@@ -671,8 +727,8 @@
     return null;
   }
 
-  function createHighlight(range, text, trans) {
-    if (!range) return;
+  // 把 Range 转为可在页面上重绘的百分比矩形（高亮与批注共用）
+  function rectsFromRange(range) {
     const items = [];
     for (const r of range.getClientRects()) {
       if (r.width < 0.5 || r.height < 0.5) continue;
@@ -687,6 +743,12 @@
         h: r.height / pr.height,
       });
     }
+    return items;
+  }
+
+  function createHighlight(range, text, trans) {
+    if (!range) return;
+    const items = rectsFromRange(range);
     if (!items.length) { PR.toast('无法定位高亮位置，请重试', 'error'); return; }
     const hl = { id: uid('h'), text, trans: trans || '', rects: items, createdAt: Date.now() };
     doc.highlights.push(hl);
@@ -713,71 +775,126 @@
     return null;
   }
 
+  function hitAnnotation(pe, nx, ny) {
+    const pr = pe.getBoundingClientRect();
+    const tolX = 3 / pr.width, tolY = 3 / pr.height;
+    const pNum = parseInt(pe.dataset.page, 10);
+    for (let i = doc.annotations.length - 1; i >= 0; i--) {
+      const a = doc.annotations[i];
+      for (const r of annRects(a)) {
+        if (r.p !== pNum) continue;
+        if (nx >= r.x - tolX && nx <= r.x + r.w + tolX && ny >= r.y - tolY && ny <= r.y + r.h + tolY) return a;
+      }
+    }
+    return null;
+  }
+
+  // 点高亮弹窗：只管高亮本身（引用/译文/取消），批注入口转给独立批注
   function openNotePop(hl, x, y) {
     closePop('note');
     const pop = document.createElement('div');
     pop.className = 'pop notepop';
     pop.innerHTML =
-      '<div class="pop-head"><span>高亮批注</span><button class="pop-x">×</button></div>' +
+      '<div class="pop-head"><span>🖍 高亮</span><button class="pop-x">×</button></div>' +
       '<div class="np-quote">' + PR.escapeHtml(hl.text.length > 200 ? hl.text.slice(0, 200) + '…' : hl.text) + '</div>' +
-      '<div class="np-anns"></div>' +
-      '<textarea class="np-input" placeholder="写批注…（回车保存）" rows="2"></textarea>' +
-      '<div class="sp-actions"><button class="btn primary mini" id="np-save">保存批注</button>' +
-      '<button class="btn danger mini" id="np-del">删除高亮</button></div>';
+      '<div class="np-trans">' + (hl.trans
+        ? PR.escapeHtml(hl.trans)
+        : '<span class="hint">暂无译文，选中该文字可重新翻译</span>') + '</div>' +
+      '<div class="sp-actions"><button class="btn primary mini" id="np-ann">✎ 批注</button>' +
+      '<button class="btn danger mini" id="np-del">取消高亮</button></div>';
     positionPop(pop, x, y);
     notePop = pop;
-    let editingId = null;
-    const list = pop.querySelector('.np-anns');
-    const input = pop.querySelector('.np-input');
-
-    function renderAnns() {
-      const anns = doc.annotations.filter((a) => a.highlightId === hl.id);
-      list.innerHTML = anns.length
-        ? anns.map((a) =>
-            '<div class="np-ann"><div class="np-ann-body">' + PR.escapeHtml(a.body) + '</div>' +
-            '<div class="np-ann-meta"><span>' + PR.fmtTime(a.updatedAt || a.createdAt) + '</span>' +
-            '<button class="btn mini" data-edit="' + a.id + '">编辑</button>' +
-            '<button class="btn mini" data-del="' + a.id + '">删除</button></div></div>').join('')
-        : '<div class="hint">还没有批注</div>';
-      list.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
-        const a = doc.annotations.find((z) => z.id === b.dataset.edit);
-        if (a) { input.value = a.body; editingId = a.id; input.focus(); }
-      }));
-      list.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', async () => {
-        const ok = await PR.confirmBox('删除这条批注？');
-        if (!ok) return;
-        doc.annotations = doc.annotations.filter((z) => z.id !== b.dataset.del);
-        if (editingId === b.dataset.del) editingId = null;
-        markDirty(); renderAnns(); renderHlList();
-      }));
-    }
-    renderAnns();
-
     pop.querySelector('.pop-x').addEventListener('click', () => closePop('note'));
+    pop.querySelector('#np-ann').addEventListener('click', () => {
+      const px = Math.max(8, x - 40), py = y + 30;
+      closePop('note');
+      openNewAnnPop(hl.text, hl.rects.map((r) => ({ p: r.p, x: r.x, y: r.y, w: r.w, h: r.h })), px, py);
+    });
+    pop.querySelector('#np-del').addEventListener('click', async () => {
+      const ok = await removeHighlights([hl.id], false);
+      if (ok) closePop('note');
+    });
+  }
+
+  // 新建独立批注弹窗（选中/悬停入口）：保存才落数据，关闭即丢弃
+  function openNewAnnPop(text, rects, x, y) {
+    if (!rects || !rects.length) { PR.toast('无法定位批注位置，请重试', 'error'); return; }
+    closePop('note');
+    const pop = document.createElement('div');
+    pop.className = 'pop notepop annpop';
+    pop.innerHTML =
+      '<div class="pop-head"><span>✎ 新建批注</span><button class="pop-x">×</button></div>' +
+      '<div class="np-quote">' + PR.escapeHtml(text.length > 200 ? text.slice(0, 200) + '…' : text) + '</div>' +
+      '<textarea class="np-input" placeholder="写批注…（回车保存，Shift+回车换行）" rows="3"></textarea>' +
+      '<div class="sp-actions"><button class="btn primary mini" id="ap-save">保存批注</button>' +
+      '<button class="btn mini" id="ap-cancel">取消</button></div>';
+    positionPop(pop, x, y);
+    notePop = pop;
+    const input = pop.querySelector('.np-input');
     function doSave() {
       const body = input.value.trim();
       if (!body) { PR.toast('先写点批注内容', 'error'); return; }
-      if (editingId) {
-        const a = doc.annotations.find((z) => z.id === editingId);
-        if (a) { a.body = body; a.updatedAt = Date.now(); }
-      } else {
-        doc.annotations.push({
-          id: uid('a'), highlightId: hl.id, body, excerpt: hl.text,
-          createdAt: Date.now(), updatedAt: Date.now(),
-        });
-      }
-      editingId = null;
-      input.value = '';
-      markDirty(); renderAnns(); renderHlList();
+      doc.annotations.push({
+        id: uid('a'), text, body, excerpt: text, rects,
+        createdAt: Date.now(), updatedAt: Date.now(),
+      });
+      markDirty();
+      redrawAllOverlays();
+      renderLists();
+      closePop('note');
+      PR.toast('已添加批注', 'ok', 1500);
     }
-    pop.querySelector('#np-save').addEventListener('click', doSave);
+    pop.querySelector('.pop-x').addEventListener('click', () => closePop('note'));
+    pop.querySelector('#ap-cancel').addEventListener('click', () => closePop('note'));
+    pop.querySelector('#ap-save').addEventListener('click', doSave);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSave(); }
       if (e.key === 'Escape') closePop('note');
     });
-    pop.querySelector('#np-del').addEventListener('click', async () => {
-      const ok = await removeHighlights([hl.id], true);
-      if (ok) closePop('note');
+    input.focus();
+  }
+
+  // 独立批注弹窗：查看/编辑/删除（新旧批注统一入口）
+  function openAnnPop(ann, x, y) {
+    closePop('note');
+    const src = ann.text || ann.excerpt || '';
+    const pop = document.createElement('div');
+    pop.className = 'pop notepop annpop';
+    pop.innerHTML =
+      '<div class="pop-head"><span>✎ 批注</span><button class="pop-x">×</button></div>' +
+      '<div class="np-quote">' + PR.escapeHtml(src.length > 200 ? src.slice(0, 200) + '…' : src) + '</div>' +
+      '<textarea class="np-input" placeholder="写批注…（回车保存，Shift+回车换行）" rows="3"></textarea>' +
+      '<div class="sp-actions"><button class="btn primary mini" id="ap-save">保存批注</button>' +
+      '<button class="btn danger mini" id="ap-del">删除批注</button></div>';
+    positionPop(pop, x, y);
+    notePop = pop;
+    const input = pop.querySelector('.np-input');
+    input.value = ann.body || '';
+    function doSave() {
+      const body = input.value.trim();
+      if (!body) { PR.toast('先写点批注内容', 'error'); return; }
+      ann.body = body;
+      ann.updatedAt = Date.now();
+      markDirty();
+      renderLists();
+      closePop('note');
+      PR.toast('批注已保存', 'ok', 1500);
+    }
+    pop.querySelector('.pop-x').addEventListener('click', () => closePop('note'));
+    pop.querySelector('#ap-save').addEventListener('click', doSave);
+    pop.querySelector('#ap-del').addEventListener('click', async () => {
+      const ok = await PR.confirmBox('删除这条批注？');
+      if (!ok) return;
+      doc.annotations = doc.annotations.filter((z) => z.id !== ann.id);
+      markDirty();
+      redrawAllOverlays();
+      renderLists();
+      closePop('note');
+      PR.toast('已删除批注', 'ok', 1500);
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSave(); }
+      if (e.key === 'Escape') closePop('note');
     });
   }
 
@@ -798,34 +915,100 @@
     pv.innerHTML = PR.renderMarkdown(doc.note.md || '');
     PR.renderMath(pv);
   }
+  // 高亮栏：只管高亮（联动开关/取消/跳转），批注完全独立到批注栏
   function renderHlList() {
     const list = root.querySelector('#hl-list');
     if (!list || !doc) return;
     root.querySelector('#d-hlcount').textContent = doc.highlights.length ? ' ' + doc.highlights.length : '';
     if (!doc.highlights.length) {
-      list.innerHTML = '<div class="empty">还没有高亮。<br><br>选中正文任意文字，点弹出的「🖍 高亮」即可；打开顶部「全文联动」，相同词会自动全文标注。</div>';
+      list.innerHTML = '<div class="empty">还没有高亮。<br><br>选中正文任意文字点「🖍 高亮」做标记；打开顶部「全文联动」，相同词会自动全文标注。</div>';
       return;
     }
-    const items = doc.highlights.slice().reverse();
-    list.innerHTML = items.map((hl) => {
-      const n = doc.annotations.filter((a) => a.highlightId === hl.id).length;
+    const entries = doc.highlights.slice().sort((p, q) => (q.createdAt || 0) - (p.createdAt || 0));
+    list.innerHTML = entries.map((hl) => {
       return '<div class="hl-item" data-hl="' + hl.id + '" style="border-left:3px solid ' + hlColor(hl.text, 0.9) + '">' +
         '<div class="hl-item-top"><span class="chip">第 ' + (hl.rects[0] ? hl.rects[0].p : '?') + ' 页</span>' +
         '<span class="hint">' + PR.fmtTime(hl.createdAt) + '</span></div>' +
         '<div class="hl-item-text">' + PR.escapeHtml(hl.text.length > 110 ? hl.text.slice(0, 110) + '…' : hl.text) + '</div>' +
         (hl.trans ? '<div class="hl-item-trans">' + PR.escapeHtml(hl.trans.length > 90 ? hl.trans.slice(0, 90) + '…' : hl.trans) + '</div>' : '') +
-        (n ? '<div class="hint">💬 ' + n + ' 条批注</div>' : '') +
-        '<div class="hl-item-acts"><button class="btn mini hl-un" data-un="' + hl.id + '" title="取消这条高亮">取消高亮</button></div>' +
+        '<div class="hl-item-acts">' +
+        '<button class="btn mini hl-link' + (hl.linkage === false ? '' : ' on') + '" data-lk="' + hl.id + '" title="该词单独的全文联动开关（顶栏总开关仍控制全部）">' +
+        (hl.linkage === false ? '🔗 未联动' : '🔗 联动中') + '</button>' +
+        '<button class="btn mini hl-un" data-un="' + hl.id + '" title="取消这条高亮">取消高亮</button>' +
+        '</div>' +
         '</div>';
     }).join('');
+
+    list.querySelectorAll('.hl-link').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const hl = doc.highlights.find((h) => h.id === b.dataset.lk);
+      if (!hl) return;
+      hl.linkage = hl.linkage === false;   // undefined→false，false→true，true→false
+      markDirty();
+      renderHlList();
+      for (const n of renderedSet) drawLinkage(n);
+      PR.toast(hl.linkage === false ? '已关闭该词的全文联动' : '已开启该词的全文联动', 'ok', 1400);
+    }));
     list.querySelectorAll('.hl-un').forEach((b) => b.addEventListener('click', async (e) => {
       e.stopPropagation();
       const ok = await removeHighlights([b.dataset.un], false);
       if (ok) PR.toast('已取消高亮', 'ok', 1400);
     }));
-    list.querySelectorAll('.hl-item').forEach((it) => it.addEventListener('click', () => {
+    list.querySelectorAll('.hl-item[data-hl]').forEach((it) => it.addEventListener('click', () => {
       jumpToHighlight(it.dataset.hl);
     }));
+  }
+
+  // 批注栏：全部批注（含历史挂在高亮下的），与高亮无归属关系
+  function renderAnnList() {
+    const list = root.querySelector('#ann-list');
+    if (!list || !doc) return;
+    const anns = doc.annotations.filter((a) => annRects(a).length)
+      .sort((p, q) => (q.createdAt || 0) - (p.createdAt || 0));
+    root.querySelector('#d-anncount').textContent = anns.length ? ' ' + anns.length : '';
+    if (!anns.length) {
+      list.innerHTML = '<div class="empty">还没有批注。<br><br>选中正文任意文字或悬停某个单词，点「✎ 批注」写下想法（单词、短语、句子都行）；批注在页面上显示为橙色虚线下划线。</div>';
+      return;
+    }
+    list.innerHTML = anns.map((a) => {
+      const rs = annRects(a);
+      const open = expanded.has(a.id);
+      const body = a.body || '';
+      const src = a.text || a.excerpt || '';
+      return '<div class="hl-item ann-item" data-ann="' + a.id + '">' +
+        '<div class="hl-item-top"><span class="chip">✎ 批注 · 第 ' + (rs[0] ? rs[0].p : '?') + ' 页</span>' +
+        '<span class="hint">' + PR.fmtTime(a.createdAt) + '</span></div>' +
+        (src ? '<div class="hl-item-text">' + PR.escapeHtml(src.length > 110 ? src.slice(0, 110) + '…' : src) + '</div>' : '') +
+        '<button class="btn mini hl-exp' + (open ? ' on' : '') + '" data-exp="' + a.id + '">' +
+        (open ? '▾ 收起批注' : '▸ 展开批注') + '</button>' +
+        (open ? '<div class="hl-anns"><div class="hl-ann"><div class="hint">' + PR.fmtTime(a.updatedAt || a.createdAt) + '</div>' +
+          '<div class="hl-ann-body">' + PR.escapeHtml(body) + '</div></div></div>' : '') +
+        '<div class="hl-item-acts"><button class="btn mini ann-edit" data-ae="' + a.id + '">✎ 编辑批注</button></div>' +
+        '</div>';
+    }).join('');
+
+    list.querySelectorAll('.hl-exp').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = b.dataset.exp;
+      if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
+      renderAnnList();
+    }));
+    list.querySelectorAll('.ann-edit').forEach((b) => b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const a = doc.annotations.find((z) => z.id === b.dataset.ae);
+      if (!a) return;
+      const r = b.getBoundingClientRect();
+      openAnnPop(a, Math.max(8, r.left - 40), r.bottom + 8);
+    }));
+    list.querySelectorAll('.ann-item[data-ann]').forEach((it) => it.addEventListener('click', () => {
+      jumpToAnnotation(it.dataset.ann);
+    }));
+  }
+
+  // 数据变更后同时刷新高亮栏与批注栏
+  function renderLists() {
+    renderHlList();
+    renderAnnList();
   }
 
   function jumpToHighlight(hlId) {
@@ -834,9 +1017,17 @@
     pendingFlash = hlId;
     scrollToPage(hl.rects[0].p, () => applyFlash());
   }
+  function jumpToAnnotation(annId) {
+    const a = doc.annotations.find((z) => z.id === annId);
+    const rs = a ? annRects(a) : [];
+    if (!rs.length) return;
+    pendingFlash = annId;
+    scrollToPage(rs[0].p, () => applyFlash());
+  }
   function applyFlash() {
     if (!pendingFlash || !root) return;
-    const els = root.querySelectorAll('.mhl[data-hl="' + pendingFlash + '"]');
+    const els = root.querySelectorAll(
+      '.mhl[data-hl="' + pendingFlash + '"], .mann[data-ann="' + pendingFlash + '"]');
     if (!els.length) return;
     els.forEach((e) => {
       e.classList.add('flash');
@@ -905,7 +1096,7 @@
       const md = el.querySelector('#np-md');
       md.value = doc.note.md || '';
       renderTags();
-      renderHlList();
+      renderLists();
       if (doc.note.tags && doc.note.tags.length) { /* 已渲染 */ }
       let mode = 'edit';
       el.querySelectorAll('.np-toolbar button').forEach((b) => b.addEventListener('click', () => {
@@ -939,20 +1130,21 @@
       });
 
       const drawer = el.querySelector('#drawer');
+      const dTabs = ['note', 'hl', 'ann'];
       function openDrawer(tab) {
         drawer.classList.add('open');
         el.querySelectorAll('.d-tabs button[data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === tab));
-        el.querySelector('#pane-note').hidden = tab !== 'note';
-        el.querySelector('#pane-hl').hidden = tab !== 'hl';
+        dTabs.forEach((t) => { el.querySelector('#pane-' + t).hidden = t !== tab; });
       }
       function toggleDrawer(tab) {
         const sameOpen = drawer.classList.contains('open') &&
-          !el.querySelector('#pane-' + (tab === 'note' ? 'note' : 'hl')).hidden;
+          !el.querySelector('#pane-' + tab).hidden;
         if (sameOpen) drawer.classList.remove('open');
         else openDrawer(tab);
       }
       on(el.querySelector('#r-tab-note'), 'click', () => toggleDrawer('note'));
       on(el.querySelector('#r-tab-hl'), 'click', () => toggleDrawer('hl'));
+      on(el.querySelector('#r-tab-ann'), 'click', () => toggleDrawer('ann'));
       on(el.querySelector('#d-close'), 'click', () => drawer.classList.remove('open'));
       el.querySelectorAll('.d-tabs button[data-t]').forEach((b) =>
         on(b, 'click', () => openDrawer(b.dataset.t)));
@@ -1102,9 +1294,14 @@
         const pr = pe.getBoundingClientRect();
         const nx = (e.clientX - pr.left) / pr.width;
         const ny = (e.clientY - pr.top) / pr.height;
-        const hit = hitHighlight(pe, nx, ny);
-        if (hit) openNotePop(hit, e.clientX, e.clientY);
-        else closePop('note');
+        // 批注优先：批注一律打开批注弹窗；高亮打开高亮弹窗
+        const hitA = hitAnnotation(pe, nx, ny);
+        if (hitA) openAnnPop(hitA, e.clientX, e.clientY);
+        else {
+          const hit = hitHighlight(pe, nx, ny);
+          if (hit) openNotePop(hit, e.clientX, e.clientY);
+          else closePop('note');
+        }
       });
 
       on(document, 'mousedown', (e) => {
@@ -1132,6 +1329,7 @@
       boundFns = [];
       if (rafScroll) cancelAnimationFrame(rafScroll);
       doc = null;
+      expanded = new Set();
       renderedSet = new Set();
       queue = [];
       inFlight = new Map();

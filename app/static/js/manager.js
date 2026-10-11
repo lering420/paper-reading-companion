@@ -76,6 +76,16 @@
       if (ans.length) out += '\n';
       out += '---\n\n';
     });
+    // 不挂在高亮下的独立批注（选中/悬停直接创建）
+    const alone = (d.annotations || []).filter((a) => !a.highlightId);
+    if (alone.length) {
+      out += '## 独立批注（' + alone.length + ' 条）\n\n';
+      alone.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).forEach((a) => {
+        out += '- 「' + (a.text || '').replace(/\n/g, ' ') + '」（' +
+          PR.fmtTime(a.updatedAt || a.createdAt) + '）：' + a.body + '\n';
+      });
+      out += '\n';
+    }
     PR.downloadBlob(safeName(d.meta.name) + '-高亮批注.md', new Blob([out], { type: 'text/markdown' }));
     PR.toast('已导出高亮与批注', 'ok');
   }
