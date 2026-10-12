@@ -205,7 +205,7 @@ async function handleApi(req, res, parsed) {
   if (method === 'GET' && parsed.pathname === '/api/vocab') {
     return sendJson(res, 200, { words: store.getVocab() });
   }
-  // POST /api/vocab — 收录单词（翻译成功后由前端静默调用）
+  // POST /api/vocab — 收录单词（用户在翻译弹窗点「＋ 词库」手动调用）
   if (method === 'POST' && parsed.pathname === '/api/vocab') {
     const body = await jsonBody(req, 64 * 1024);
     const item = store.addVocabWord(body.word, body.trans);

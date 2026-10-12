@@ -63,11 +63,31 @@
     return p;
   }
 
-  // ---------- 词库收录：翻译成功的英文单词静默进词库（失败不影响阅读） ----------
-  function collectWord(text, trans) {
-    const w = String(text || '').trim().replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, '');
-    if (!/^[A-Za-z][A-Za-z'’-]{1,39}$/.test(w)) return;
-    PR.api.vocabAdd(w, trans).catch(() => {});
+  // ---------- 词库（手动加入）：缓存已收录 key，供弹窗按钮显示「✓ 已在词库」 ----------
+  let vocabKeys = null;   // Set<key>，null = 尚未加载
+  function vocabKey(text) {
+    return String(text || '').trim().toLowerCase();
+  }
+  function ensureVocabKeys() {
+    if (vocabKeys) return Promise.resolve(vocabKeys);
+    return PR.api.vocabList()
+      .then((d) => { vocabKeys = new Set((d.words || []).map((w) => w.key)); return vocabKeys; })
+      .catch(() => null);   // 加载失败不阻塞：按钮按未收录态渲染，点加入会自然修正
+  }
+  function syncVocabBtn(btn, text) {
+    const inVocab = !!vocabKeys && vocabKeys.has(vocabKey(text));
+    btn.classList.toggle('on', inVocab);
+    btn.textContent = inVocab ? '✓ 已在词库' : '＋ 词库';
+  }
+  function addToVocab(text, trans, btn) {
+    if (vocabKeys && vocabKeys.has(vocabKey(text))) { PR.toast('已在词库中', 'ok', 1400); return; }
+    if (!trans) { PR.toast('翻译还没好', 'error'); return; }
+    PR.api.vocabAdd(text, trans).then(() => {
+      if (!vocabKeys) vocabKeys = new Set();
+      vocabKeys.add(vocabKey(text));
+      syncVocabBtn(btn, text);
+      PR.toast('已加入词库', 'ok', 1400);
+    }).catch(() => PR.toast('加入词库失败，请重试', 'error'));
   }
 
   // ---------- 骨架 ----------
@@ -584,7 +604,8 @@
           ? '<button class="btn mini hp-un" title="取消这个词的高亮">✕ 取消高亮</button>'
           : '<button class="btn mini hp-hl" title="将这个词加入高亮">🖍 高亮</button>') +
         '<button class="btn mini hp-ann" title="给这个词添加批注">✎ 批注</button>' +
-        '<button class="btn mini hp-copy" title="复制译文">复制</button></div>';
+        '<button class="btn mini hp-copy" title="复制译文">复制</button>' +
+        '<button class="btn mini hp-vocab" title="加入词库">＋ 词库</button></div>';
       const r = hover.rect;
       positionPop(pop, r ? r.left : x, r ? r.bottom + 6 : y + 14);
       hover.el = pop;
@@ -626,10 +647,15 @@
         hideHover();
         openNewAnnPop(word, items, r0 ? r0.left : x, r0 ? r0.bottom + 6 : y + 14);
       });
+      const vocabBtn = pop.querySelector('.hp-vocab');
+      vocabBtn.addEventListener('click', () => {
+        addToVocab(word, pop.querySelector('.hp-trans').dataset.full || '', vocabBtn);
+      });
+      syncVocabBtn(vocabBtn, word);
+      ensureVocabKeys().then(() => syncVocabBtn(vocabBtn, word));
       const tr = pop.querySelector('.hp-trans');
       doTranslate(word)
         .then((r2) => {
-          collectWord(word, r2.text);
           if (hover.el !== pop) return;
           tr.dataset.full = r2.text;
           tr.textContent = r2.text;
@@ -660,7 +686,8 @@
     const pop = document.createElement('div');
     pop.className = 'pop selpop';
     pop.innerHTML =
-      '<div class="pop-head"><span>' + (isWord ? '单词' : '句子') + '翻译</span>' +
+      '<div class="pop-head"><span>' + (isWord ? '单词翻译' : '句子翻译') +
+      '<button class="btn mini sp-vocab" id="sp-vocab" title="加入词库">＋ 词库</button></span>' +
       '<button class="pop-x">×</button></div>' +
       '<div class="sp-src">' + PR.escapeHtml(text.length > 120 ? text.slice(0, 120) + '…' : text) + '</div>' +
       '<div class="sp-trans"><span class="loading">翻译中…</span></div>' +
@@ -675,7 +702,6 @@
     const tr = pop.querySelector('.sp-trans');
     const p = doTranslate(text);
     p.then((r) => {
-      if (isWord) collectWord(text, r.text);
       if (selPop !== pop) return;
       tr.dataset.full = r.text;
       tr.textContent = r.text;
@@ -691,7 +717,7 @@
       btn.textContent = '重试';
       btn.addEventListener('click', () => {
         tr.innerHTML = '<span class="loading">翻译中…</span>';
-        doTranslate(text).then((r2) => { if (isWord) collectWord(text, r2.text); tr.dataset.full = r2.text; tr.textContent = r2.text; if (r2.provider === 'termbase') tr.appendChild(srcBadge()); })
+        doTranslate(text).then((r2) => { tr.dataset.full = r2.text; tr.textContent = r2.text; if (r2.provider === 'termbase') tr.appendChild(srcBadge()); })
           .catch((e2) => { tr.innerHTML = '<span class="err">' + PR.escapeHtml(e2.message) + '</span>'; });
       });
       tr.appendChild(btn);
@@ -715,6 +741,10 @@
       window.getSelection().removeAllRanges();
       openNewAnnPop(text, items, px, py);
     });
+    const vocabBtn = pop.querySelector('#sp-vocab');
+    vocabBtn.addEventListener('click', () => addToVocab(text, tr.dataset.full || '', vocabBtn));
+    syncVocabBtn(vocabBtn, text);
+    ensureVocabKeys().then(() => syncVocabBtn(vocabBtn, text));
   }
 
   function findPageAt(x, y) {

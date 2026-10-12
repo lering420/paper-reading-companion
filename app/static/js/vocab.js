@@ -1,4 +1,4 @@
-// 词库页：阅读时翻译过的单词自动收录于此 —— 搜索 / 筛选 / 标记掌握 / 随机复习 / 导出 CSV
+// 词库页：阅读时手动点「＋ 词库」加入的单词 —— 搜索 / 筛选 / 标记掌握 / 随机复习 / 导出 CSV
 (function () {
   'use strict';
   const PR = window.PR;
@@ -6,6 +6,8 @@
   let words = [];       // 全部词条（服务端按最近查阅排序）
   let query = '';
   let filter = 'all';   // all | new | learned
+  let selMode = false;  // 多选删除模式
+  const selected = new Set();   // 已勾选的 w（跨搜索/筛选保留，可分批挑选）
 
   function filtered() {
     const q = query.toLowerCase();
@@ -16,6 +18,46 @@
       return String(w.w || '').toLowerCase().includes(q) ||
         String(w.trans || '').toLowerCase().includes(q);
     });
+  }
+
+  // ---------- 多选删除 ----------
+  function setSelMode(on) {
+    selMode = on;
+    if (!on) selected.clear();
+    const bulk = document.getElementById('v-bulk');
+    if (bulk) bulk.hidden = !on;
+    const t = document.getElementById('v-multisel');
+    if (t) { t.classList.toggle('on', on); t.textContent = on ? '☑ 多选中' : '☑ 多选'; }
+    renderList();
+    updateBulk();
+  }
+
+  function updateBulk() {
+    const c = document.getElementById('v-selcount');
+    if (c) c.textContent = selected.size;
+    const d = document.getElementById('v-seldel');
+    if (d) {
+      d.disabled = !selected.size;
+      d.textContent = '🗑 删除所选' + (selected.size ? ' (' + selected.size + ')' : '');
+    }
+  }
+
+  async function bulkDelete() {
+    const list = [...selected];
+    if (!list.length) return;
+    const ok = await PR.confirmBox('从词库删除所选 ' + list.length + ' 个单词？');
+    if (!ok) return;
+    const done = new Set();
+    const fail = [];
+    for (const w of list) {
+      try { await PR.api.vocabDel(w); selected.delete(w); done.add(w); }
+      catch (e) { fail.push(w); }
+    }
+    words = words.filter((x) => !done.has(x.w));
+    renderList();
+    updateBulk();
+    if (fail.length) PR.toast('已删除 ' + done.size + ' 个，' + fail.length + ' 个失败', 'error');
+    else PR.toast('已删除 ' + done.size + ' 个', 'ok', 1600);
   }
 
   function renderList() {
@@ -29,15 +71,19 @@
     }
     const items = filtered();
     if (!words.length) {
-      list.innerHTML = '<div class="empty">词库还是空的。<br>在阅读页悬停取词或选中单词翻译后，单词会自动收录到这里。</div>';
+      list.innerHTML = '<div class="empty">词库还是空的。<br>在阅读页把鼠标停在单词上，或选中文字翻译，点弹窗里的「＋ 词库」即可加入。</div>';
       return;
     }
     if (!items.length) {
       list.innerHTML = '<div class="empty">没有匹配的单词，试试换个关键词。</div>';
       return;
     }
+    list.classList.toggle('selmode', selMode);
     list.innerHTML = items.map((w) =>
-      '<div class="v-row' + (w.learned ? ' learned' : '') + '" data-w="' + PR.escapeHtml(w.w) + '">' +
+      '<div class="v-row' + (w.learned ? ' learned' : '') + (selected.has(w.w) ? ' sel' : '') +
+      '" data-w="' + PR.escapeHtml(w.w) + '">' +
+      '<label class="v-check"><input type="checkbox" class="v-cb"' +
+      (selected.has(w.w) ? ' checked' : '') + '></label>' +
       '<span class="v-word">' + PR.escapeHtml(w.w) + '</span>' +
       '<span class="v-trans">' + PR.escapeHtml(w.trans || '（无译文）') + '</span>' +
       '<span class="v-meta" title="查阅次数 / 最近查阅">×' + (w.count || 1) + ' · ' +
@@ -50,6 +96,20 @@
 
     list.querySelectorAll('.v-row').forEach((row) => {
       const w = row.dataset.w;
+      // 多选：点勾选框（原生切换）或点行空白处都能切换；行内按钮不触发
+      row.querySelector('.v-cb').addEventListener('change', (e) => {
+        if (e.target.checked) selected.add(w); else selected.delete(w);
+        row.classList.toggle('sel', e.target.checked);
+        updateBulk();
+      });
+      row.addEventListener('click', (e) => {
+        if (!selMode || e.target.closest('button') || e.target.closest('.v-check')) return;
+        const on = !selected.has(w);
+        if (on) selected.add(w); else selected.delete(w);
+        row.classList.toggle('sel', on);
+        row.querySelector('.v-cb').checked = on;
+        updateBulk();
+      });
       row.querySelector('.v-learned').addEventListener('click', async () => {
         const item = words.find((x) => x.w === w);
         if (!item) return;
@@ -65,7 +125,9 @@
         try {
           await PR.api.vocabDel(w);
           words = words.filter((x) => x.w !== w);
+          selected.delete(w);
           renderList();
+          updateBulk();
           PR.toast('已删除', 'ok', 1400);
         } catch (e) { PR.toastErr(e); }
       });
@@ -100,7 +162,7 @@
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
     }
-    if (!deck.length) { PR.toast('词库是空的，先去阅读页收集单词吧', 'error'); return; }
+    if (!deck.length) { PR.toast('词库是空的，先去阅读页加几个单词吧', 'error'); return; }
     review = { deck, i: 0, revealed: false };
     const wrap = document.createElement('div');
     wrap.className = 'v-review';
@@ -176,6 +238,14 @@
         '</span>' +
         '<button class="btn primary" id="v-review">🎴 随机复习</button>' +
         '<button class="btn" id="v-export">⬇ 导出 CSV</button>' +
+        '<button class="btn" id="v-multisel">☑ 多选</button>' +
+        '</div>' +
+        '<div class="v-bulk" id="v-bulk" hidden>' +
+        '<span class="v-bulk-info">已选 <b id="v-selcount">0</b></span>' +
+        '<button class="btn mini" id="v-selall">全选当前结果</button>' +
+        '<button class="btn mini" id="v-selnone">清空</button>' +
+        '<button class="btn mini danger" id="v-seldel" disabled>🗑 删除所选</button>' +
+        '<button class="btn mini ghost" id="v-selx">退出多选</button>' +
         '</div>' +
         '<div class="v-list" id="v-list"><div class="empty">正在加载…</div></div>' +
         '</main>';
@@ -194,6 +264,19 @@
       });
       el.querySelector('#v-export').addEventListener('click', exportCsv);
       el.querySelector('#v-review').addEventListener('click', openReview);
+      el.querySelector('#v-multisel').addEventListener('click', () => setSelMode(!selMode));
+      el.querySelector('#v-selall').addEventListener('click', () => {
+        filtered().forEach((w) => selected.add(w.w));
+        renderList();
+        updateBulk();
+      });
+      el.querySelector('#v-selnone').addEventListener('click', () => {
+        selected.clear();
+        renderList();
+        updateBulk();
+      });
+      el.querySelector('#v-seldel').addEventListener('click', bulkDelete);
+      el.querySelector('#v-selx').addEventListener('click', () => setSelMode(false));
 
       try {
         const d = await PR.api.vocabList();
@@ -209,6 +292,7 @@
       document.removeEventListener('keydown', onKey);
       closeReview();
       words = []; query = ''; filter = 'all';
+      selMode = false; selected.clear();
     },
   };
   PR.views.vocab = view;

@@ -334,7 +334,7 @@ a { color: var(--accent); text-decoration: none; }
 .hp-word { font-weight: 700; color: var(--accent); }
 .hp-trans { flex: 1; min-width: 80px; line-height: 1.6; }
 .hp-trans .err { color: #dc2626; font-size: 12.5px; }
-.hp-acts { display: flex; gap: 6px; flex-shrink: 0; margin-left: auto; }
+.hp-acts { display: flex; gap: 6px; flex-shrink: 0; margin-left: auto; flex-wrap: wrap; justify-content: flex-end; }
 .hp-acts .hp-hl { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
 .hp-acts .hp-hl:hover { background: #fef3c7; }
 .hp-acts .hp-un { border-color: #fca5a5; background: #fef2f2; color: #b91c1c; }
@@ -346,7 +346,12 @@ a { color: var(--accent); text-decoration: none; }
 }
 .sp-trans { padding: 10px 12px; line-height: 1.7; min-height: 40px; white-space: pre-wrap; word-break: break-word; }
 .sp-trans .err { color: #dc2626; }
-.sp-actions { display: flex; gap: 7px; padding: 0 12px 10px; }
+.sp-actions { display: flex; gap: 7px; padding: 0 12px 10px; flex-wrap: wrap; }
+/* 词库按钮：小号放在标题栏；已在词库态 */
+.pop-head .sp-vocab { margin-left: 8px; font-size: 11.5px; padding: 2px 8px; }
+.hp-acts .hp-vocab.on, .pop-head .sp-vocab.on {
+  background: #ecfdf5; border-color: #6ee7b7; color: #047857;
+}
 .notepop { min-width: 260px; }
 .np-quote {
   padding: 8px 12px; background: #fffbeb; border-bottom: 1px dashed var(--line);
@@ -414,6 +419,21 @@ a { color: var(--accent); text-decoration: none; }
 .v-row.learned { opacity: .62; }
 .v-row.learned .v-word { text-decoration: line-through; }
 .v-learned.on { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+/* 多选删除：操作条 + 勾选框 + 选中行 */
+.v-bulk {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 10px;
+  padding: 8px 12px; margin-bottom: 10px; font-size: 13px; color: #4338ca;
+}
+.v-bulk .v-bulk-info { margin-right: auto; }
+.v-bulk b { font-size: 14px; }
+#v-multisel.on { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
+.v-check { display: none; flex-shrink: 0; cursor: pointer; line-height: 1; }
+.v-list.selmode .v-check { display: inline-flex; }
+.v-check input { width: 16px; height: 16px; accent-color: #4f46e5; cursor: pointer; margin: 0; }
+.v-list.selmode .v-row { cursor: pointer; }
+.v-row.sel { background: #eef2ff; }
+.v-row.sel:hover { background: #e0e7ff; }
 .v-review { position: fixed; inset: 0; background: rgba(15, 23, 42, .5); z-index: 80; display: flex; align-items: center; justify-content: center; }
 .v-card {
   background: var(--card); border-radius: 16px; padding: 30px 38px 28px;
